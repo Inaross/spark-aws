@@ -23,7 +23,7 @@ ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 ENV SPARK_VERSION=3.5.0
 ENV HADOOP_VERSION=3
 ENV SPARK_HOME=/opt/spark
-ENV PATH=$PATH:$SPARK_HOME/bin:&SPARK_HOME/sbin
+ENV PATH=$PATH:$SPARK_HOME/bin:$SPARK_HOME/sbin
 
 # 3. INSTALACION DE APACHE SPARK
 # Descargamos Spark oficial, lo descomprimimos, limpiamos el archivo zip para ahorrar espacio.
@@ -37,7 +37,8 @@ RUN wget -q https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-$
 # 4. CONFIGURACION CRÍTICA PARA AWS S3 (PRO)
 # LA MALLORIA FALLA AQUI. Descargamos los JAR necesarios para que Spark hable con S3
 WORKDIR $SPARK_HOME/jars
-RUN wget -q wget -q https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar && \
+# (Asegúrate de que solo haya UN 'wget -q' por enlace)
+RUN wget -q https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar && \
     wget -q https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar
 
 # 5. INSATALCION DEPENDENCIAS PYTHON
