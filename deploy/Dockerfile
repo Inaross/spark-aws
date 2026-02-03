@@ -11,11 +11,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 #1. INSTALACION DE DEPENDENCIAS DEL SISTEMA
 RUN apt-get update && apt-get install -y \
-    openjdk-11jre-headless \
+    openjdk-11-jre-headless \
     curl \
     wget \
     procps \
-    inputils-ping \
+    iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. VARIABLES DE ENTORNO (Mapa del sistema)
