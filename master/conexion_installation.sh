@@ -22,3 +22,13 @@ newgrp docker << END
     echo "--- CONSTRUYENDO IMAGEN ---"
     docker build -t mi-spark-image:v1 .
 END
+
+
+#--- Ejecutar esto en caso de error. (Es en Terminal)---
+# Proceso: Corregir el error que provendrá de los archivos > deploy/Dockerfile
+# > Subir a GitHub > Bajar en la instancia EC2 > Reconstruir la imagen Docker
+# 1. Bajamos la última versión
+git pull
+
+# 2. Construimos la imagen (con sudo)
+sudo docker build -t mi-spark-image:v1 .
