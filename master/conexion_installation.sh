@@ -30,5 +30,8 @@ END
 # 1. Bajamos la última versión
 git pull
 
-# 2. Construimos la imagen (con sudo)
+# 2. Construimos la imagen
 sudo docker build -t mi-spark-image:v1 .
+
+#--- Probar la imagen (Es en Terminal)---
+sudo docker run -it --rm mi-spark-image:v1 /opt/spark/bin/spark-submit --version
