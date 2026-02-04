@@ -34,4 +34,7 @@ git pull
 sudo docker build -t mi-spark-image:v1 .
 
 #--- Probar la imagen (Es en Terminal)---
-sudo docker run -it --rm mi-spark-image:v1 /opt/spark/bin/spark-submit --version
+sudo docker run -it --rm -e SPARK_ROLE=submit mi-spark-image:v1 /opt/spark/bin/spark-submit --version
+
+
+
