@@ -1,3 +1,10 @@
+#--- Si da problemas de permisos, ejecutar esto (Es en Terminal)---
+icacls "labsuser.pem" /inheritance:r
+
+icacls "labsuser.pem" /grant:r "$($env:USERNAME):F"
+
+ssh -i "labsuser.pem" ubuntu@44.192.33.183
+
 #--- Ejemplo de conexión a la instancia EC2 Master (Es en Terminal)---
 ssh -i "labsuser.pem" ubuntu@44.220.184.112
 
@@ -36,5 +43,9 @@ sudo docker build -t mi-spark-image:v1 .
 #--- Probar la imagen (Es en Terminal)---
 sudo docker run -it --rm -e SPARK_ROLE=submit mi-spark-image:v1 /opt/spark/bin/spark-submit --version
 
+# Generamsos el docker-compose.yml para desplegar el cluster de Spark
+nano docker-compose.yml
 
+# Compronamos que el archivo se ha generado correctamente
+sudo docker ps
 
