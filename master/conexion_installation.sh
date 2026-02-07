@@ -1,40 +1,36 @@
 #--- Ejemplo de conexión a la instancia EC2 Master (Es en Terminal)---
-ssh -i "labsuser.pem" ubuntu@44.220.184.112
+ssh -i "labsuser.pem" ubuntu@IP_PUBLICA
 
-#--- Script de instalación de Docker y construcción de imagen (Es en Terminal)---
-# 1. Volvemos a la raíz y actualizamos cambios
-cd ~/spark-aws
-git pull
+#---Conexión a ---
+# 1. Actualizar repositorios e instalar Docker y Git
+sudo apt-get update && sudo apt-get install -y docker.io git
 
-# 2. Entramos a la carpeta deploy (donde ahora está TODO)
-cd deploy
+# 2. Iniciar el servicio de Docker
+sudo systemctl start docker
+sudo systemctl enable docker
 
-# 3. Damos permisos a los DOS scripts
-chmod +x dockerInstall.sh
-chmod +x entrypoint.sh
+# 3. Clonar TU repositorio actualizado
+git clone https://github.com/Inaross/spark-aws.git
 
-# 4. Instalamos Docker
-echo "--- INSTALANDO DOCKER ---"
-./dockerInstall.sh
-
-# 5. Construimos la imagen
-newgrp docker << END
-    echo "--- CONSTRUYENDO IMAGEN ---"
-    docker build -t mi-spark-image:v1 .
-END
-
-
-#--- Ejecutar esto en caso de error. (Es en Terminal)---
-# Proceso: Corregir el error que provendrá de los archivos > deploy/Dockerfile
-# > Subir a GitHub > Bajar en la instancia EC2 > Reconstruir la imagen Docker
-# 1. Bajamos la última versión
-git pull
-
-# 2. Construimos la imagen
+# 4. Entrar al directorio y construir la imagen
+# (Asumo que el Dockerfile está en la carpeta 'deploy', si está en la raíz, quita el 'cd deploy')
+cd spark-aws/deploy
 sudo docker build -t mi-spark-image:v1 .
 
-#--- Probar la imagen (Es en Terminal)---
-sudo docker run -it --rm -e SPARK_ROLE=submit mi-spark-image:v1 /opt/spark/bin/spark-submit --version
+# Arranca el Master usando la red del host (vital para que los workers lo vean)
+sudo docker run -d --net=host -e SPARK_ROLE=master --name spark-master mi-spark-image:v1
 
+# Ejecutar en las máquinas WORKER-1, WORKER-2 y WORKER-3
+sudo docker run -d --net=host -e SPARK_ROLE=worker -e SPARK_MASTER_URL=spark://172.31.27.125:7077 --name spark-worker mi-spark-image:v1
 
+# Entramos en modo interactivo (-it) y con shell (/bin/bash)
+sudo docker run -it --net=host --name spark-submit \
+  -e SPARK_ROLE=submit \
+  -e SPARK_MASTER_URL=spark://172.31.27.125:7077 \
+  mi-spark-image:v1 /bin/bash
 
+#Desde dentro del contenedor spark-submit, ejecutamos el comando para correr el ejemplo de SparkPi
+/opt/spark/bin/spark-submit \
+  --master spark://172.31.27.125:7077 \
+  --class org.apache.spark.examples.SparkPi \
+  /opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar 100
