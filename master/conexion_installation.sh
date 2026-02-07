@@ -16,7 +16,7 @@ sudo apt-get update && sudo apt-get install -y docker.io git
 sudo systemctl start docker
 sudo systemctl enable docker
 
-# 3. Clonar TU repositorio actualizado
+# 3. Clonar TU repositorio de Github actualizado
 git clone https://github.com/Inaross/spark-aws.git
 
 # 4. Entrar al directorio y construir la imagen
@@ -44,4 +44,28 @@ sudo docker run -it --net=host --name spark-submit \
   --class org.apache.spark.examples.SparkPi \
   /opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar 100
 
-  
+#Salimos de Spark-submit con exit y con el archivo generar_data.py lo metemos en la maquina Submit, instalamos python3-pip para instalar boto3 y luego ejecutamos el script para generar los datos en S3
+sudo apt install python3-pip
+sudo apt install python3-boto3 -y
+
+#Para configurar las credenciales de AWS en la máquina Submit, e
+#ejecutamos el siguiente comando para abrir o crear el archivo de credenciales en nano
+#(Sustituir con tus propias credenciales indicado en el documento)
+#Primero crear carpeta .aws en el home del usuario
+mkdir -p ~/.aws
+nano ~/.aws/credentials
+    [default]
+    export AWS_ACCESS_KEY_ID=PEGA_AQUI_TU_ACCESS_KEY
+    export AWS_SECRET_ACCESS_KEY=PEGA_AQUI_TU_SECRET_KEY
+    export AWS_SESSION_TOKEN=PEGA_AQUI_TU_SESSION_TOKEN
+
+#Configuramos la region
+nano ~/.aws/config
+    [default]
+    region=us-east-1
+    output=json
+
+#Ejecutamos este comando para generar los datos en S3 
+#(Sustituir mi nombre por el que se tenga en el bucket y la ruta correcta del archivo)
+#Si da error es porque no se ha copiado bien
+python3 scripts/generar_datos.py --bucket comercio360-datos-alejandro --prefix comercio360/raw --seed 123
