@@ -8,8 +8,8 @@ def main():
     spark = SparkSession.builder \
         .appName("Comercio360_Analytics") \
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
-        .config("spark.hadoop.fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain") \
         .getOrCreate()
+
 
     # Validación de argumentos
     if len(sys.argv) != 2:

@@ -8,6 +8,10 @@ ssh -i "labsuser.pem" ubuntu@44.192.33.183
 #--- Ejemplo de conexión a la instancia EC2 Master (Es en Terminal)---
 ssh -i "labsuser.pem" ubuntu@IP_PUBLICA
 
+#Si en algún momento se ha establecido conexion en una sesion anterior y ahora da error de permisos seguir estos pasos
+#Por ejemplo, en master, elimina
+sudo docker rm -f spark-master
+
 #---Conexión a ---
 # 1. Actualizar repositorios e instalar Docker y Git
 sudo apt-get update && sudo apt-get install -y docker.io git
@@ -24,18 +28,19 @@ git clone https://github.com/Inaross/spark-aws.git
 cd spark-aws/deploy
 sudo docker build -t mi-spark-image:v1 .
 
-# Arranca el Master usando la red del host (vital para que los workers lo vean)
+# Crea el Master usando la red del host (vital para que los workers lo vean)
 sudo docker run -d --net=host -e SPARK_ROLE=master --name spark-master mi-spark-image:v1
 
-# Ejecutar en las máquinas WORKER-1, WORKER-2 y WORKER-3 RECORDANDO CAMBIAR IP_MASTER POR LA IP PÚBLICA DEL MASTER
-sudo docker run -d --net=host -e SPARK_ROLE=worker -e SPARK_MASTER_URL=spark://IP_MASTER:7077 --name spark-worker mi-spark-image:v1
+# Ejecutar en las máquinas WORKER-1, WORKER-2 y WORKER-3 porque esto crea al worker, donde está la IP es la del MASTER, CAMBIARLA.
+sudo docker run -d --net=host -e SPARK_ROLE=worker -e SPARK_MASTER_URL=spark://172.31.27.125:7077 --name spark-worker mi-spark-image:v1
 
-#RECORDAR CAMBIAR IP_MASTER POR LA IP PÚBLICA DEL MASTER
-# Entramos en modo interactivo (-it) y con shell (/bin/bash)
+#RECORDAR CAMBIAR IP por la del MASTER POR la de cada uno
+# Sirve para crear un contenedor spark-submit que se conecte al master usando la red del host para que puedan comunicarse correctamente
 sudo docker run -it --net=host --name spark-submit \
   -e SPARK_ROLE=submit \
-  -e SPARK_MASTER_URL=spark://IP_MASTER:7077 \
+  -e SPARK_MASTER_URL=spark://172.31.27.125:7077 \
   mi-spark-image:v1 /bin/bash
+
 
 #RECORDAR CAMBIAR IP_MASTER POR LA IP PÚBLICA DEL MASTER
 #Desde dentro del contenedor spark-submit, ejecutamos el comando para correr el ejemplo de SparkPi
@@ -55,9 +60,9 @@ sudo apt install python3-boto3 -y
 mkdir -p ~/.aws
 nano ~/.aws/credentials
     [default]
-    export AWS_ACCESS_KEY_ID=PEGA_AQUI_TU_ACCESS_KEY
-    export AWS_SECRET_ACCESS_KEY=PEGA_AQUI_TU_SECRET_KEY
-    export AWS_SESSION_TOKEN=PEGA_AQUI_TU_SESSION_TOKEN
+    aws_access_key_id = PEGA_AQUI...
+    aws_secret_access_key = PEGA_AQUI...
+    aws_session_token = PEGA_AQUI...
 
 #Configuramos la region
 nano ~/.aws/config
@@ -69,3 +74,14 @@ nano ~/.aws/config
 #(Sustituir mi nombre por el que se tenga en el bucket y la ruta correcta del archivo)
 #Si da error es porque no se ha copiado bien
 python3 scripts/generar_datos.py --bucket comercio360-datos-alejandro --prefix comercio360/raw --seed 123
+
+#Ejecutamos este comando para correr el script de Spark que procesa los datos generados en S3 y los guarda en formato Parquet, sustituyendo la IP por la del MASTER y la ruta del script
+/opt/spark/bin/spark-submit \
+  --master spark://172.31.27.125:7077 \
+  --packages org.apache.hadoop:hadoop-aws:3.3.4 \
+  /app/src/main.py comercio360-datos-alejandro
+
+
+
+
+
