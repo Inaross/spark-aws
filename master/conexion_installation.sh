@@ -76,12 +76,41 @@ nano ~/.aws/config
 python3 scripts/generar_datos.py --bucket comercio360-datos-alejandro --prefix comercio360/raw --seed 123
 
 #Ejecutamos este comando para correr el script de Spark que procesa los datos generados en S3 y los guarda en formato Parquet, sustituyendo la IP por la del MASTER y la ruta del script
-/opt/spark/bin/spark-submit \
+#Si da error ejecutando este comando revisar las credenciales porque cambian con cada ejecución del LABORATORIO
+#Ir a archivo credentials y cambiarlas por las NUEVAS que se han generado, luego ejecutar este comando para correr el script de Spark
+# 1. Recuperamos las claves NUEVAS que acabas de pegar
+export AWS_ACCESS_KEY_ID=$(grep -i aws_access_key_id ~/.aws/credentials | cut -d'=' -f2 | tr -d ' \t')
+export AWS_SECRET_ACCESS_KEY=$(grep -i aws_secret_access_key ~/.aws/credentials | cut -d'=' -f2 | tr -d ' \t')
+export AWS_SESSION_TOKEN=$(grep -i aws_session_token ~/.aws/credentials | cut -d'=' -f2 | tr -d ' \t')
+export AWS_DEFAULT_REGION=us-east-1
+
+# 2. El comando con la configuración perfecta (450m)
+# Cambiar el nombre del bucket al que tengas tu en S3 y la ruta del script main.py
+sudo docker run --rm --net=host \
+  -e SPARK_ROLE=submit \
+  -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
+  -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
+  -e AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN \
+  -e AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION \
+  -v ~/spark-aws:/app \
+  mi-spark-image:v1 \
+  /opt/spark/bin/spark-submit \
   --master spark://172.31.27.125:7077 \
+  --conf spark.executor.memory=450m \
+  --conf spark.driver.memory=450m \
+  --conf spark.network.timeout=800s \
+  --conf spark.executor.heartbeatInterval=60s \
+  --conf spark.rpc.message.maxSize=512 \
   --packages org.apache.hadoop:hadoop-aws:3.3.4 \
   /app/src/main.py comercio360-datos-alejandro
 
+#Comprobación de que ha salido bien
+  #1.
+  sudo snap install aws-cli --classic
+  #2.
+  aws sts get-caller-identity
+  #3.
+  aws s3 ls
 
-
-
-
+#Otra manera de comprobar:
+python3 -c "import boto3; s3 = boto3.client('s3'); print('\n ARCHIVOS EN ANALYTICS:'); [print(o['Key']) for o in s3.list_objects_v2(Bucket='comercio360-datos-alejandro', Prefix='comercio360/analytics/')['Contents']]"

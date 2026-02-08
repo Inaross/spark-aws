@@ -1,3 +1,7 @@
+#Procesa datos de ventas desde S3, c
+# calcula análisis por categoría y método de pago, 
+# y almacena los resultados procesados de vuelta en S3.
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, sum, round, desc, current_timestamp
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType, DoubleType, DateType
