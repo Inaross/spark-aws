@@ -4,8 +4,8 @@
 # y almacena los resultados procesados de vuelta en S3.
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, sum as _sum, round, desc, rank, countDistinct, date_format, avg, stddev, when
-from pyspark.sql.window import Window
+from pyspark.sql.functions import col, sum as _sum, round, desc, rank, countDistinct, date_format, avg, stddev, when, coalesce, lit
+from pyspark.sql.window import Window 
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType, DoubleType, DateType
 import sys
 

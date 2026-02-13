@@ -119,7 +119,7 @@ sudo docker run --rm --net=host \
   #2.
   aws sts get-caller-identity
   #3.
-  aws s3 ls
+  aws s3 ls s3://comercio360-datos-alejandro/comercio360/analytics/
 
 #Otra manera de comprobar:
 python3 -c "import boto3; s3 = boto3.client('s3'); print('\n ARCHIVOS EN ANALYTICS:'); [print(o['Key']) for o in s3.list_objects_v2(Bucket='comercio360-datos-alejandro', Prefix='comercio360/analytics/')['Contents']]"
