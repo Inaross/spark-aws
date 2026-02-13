@@ -1,9 +1,11 @@
-#Procesa datos de ventas desde S3, c
+#ESTE ES EL JOB PRINCIPAL DE PROCESAMIENTO DE DATOS PARA COMERCIO360
+#Procesa datos de ventas desde S3, realiza análisis de ventas por categoría y método de pago, y almacena los resultados procesados de vuelta en S3.
 # calcula análisis por categoría y método de pago, 
 # y almacena los resultados procesados de vuelta en S3.
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, sum, round, desc, current_timestamp
+from pyspark.sql.functions import col, sum as _sum, round, desc, rank, countDistinct, date_format, avg, stddev, when
+from pyspark.sql.window import Window
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType, DoubleType, DateType
 import sys
 
@@ -58,45 +60,73 @@ def main():
     df_products = spark.read.csv(f"{base_path}/products.csv", header=True, schema=products_schema)
     df_orders = spark.read.csv(f"{base_path}/orders.csv", header=True, schema=orders_schema)
     df_items = spark.read.csv(f"{base_path}/order_items.csv", header=True, schema=items_schema)
-
-    # 3. Transformaciones (Lógica de Negocio)
     
-    # KPI 1: Ventas Totales por Categoría
-    # Hacemos Join de Items -> Products
-    ventas_detalle = df_items.join(df_products, "product_id")
+# 3. Transformaciones (Punto 7 del Proyecto)
     
-    # Calculamos el total de venta por línea (cantidad * precio)
-    ventas_detalle = ventas_detalle.withColumn("total_linea", col("quantity") * col("unit_price"))
-
-    kpi_categoria = ventas_detalle.groupBy("category") \
-        .agg(round(sum("total_linea"), 2).alias("ingresos_totales")) \
-        .orderBy(desc("ingresos_totales"))
-
-    print("--- KPI 1: Top Categorías por Ingresos ---")
-    kpi_categoria.show()
-
-    # KPI 2: Ventas por Método de Pago (Análisis Financiero)
-    # Join Orders -> Items (para tener el montante)
-    # Primero agrupamos items por order_id para tener el total del pedido
-    total_pedido = df_items.groupBy("order_id") \
-        .agg(sum(col("quantity") * col("unit_price")).alias("monto_pedido"))
+    # --- CONSULTA A: Top productos por facturación diaria ---
+    print("--- Ejecutando Consulta A ---")
+    df_join_a = df_orders.join(df_items, "order_id")
     
-    finanzas = df_orders.join(total_pedido, "order_id")
-    
-    kpi_pagos = finanzas.groupBy("payment_method") \
-        .agg(round(sum("monto_pedido"), 2).alias("volumen_transaccionado")) \
-        .orderBy(desc("volumen_transaccionado"))
+    df_agg_a = df_join_a.groupBy(col("order_date").alias("fecha"), col("product_id").alias("producto_id")) \
+        .agg(
+            _sum("quantity").alias("unidades"),
+            round(_sum(col("quantity") * col("unit_price")), 2).alias("importe_total")
+        )
+        
+    windowA = Window.partitionBy("fecha").orderBy(desc("importe_total"))
+    df_consulta_a = df_agg_a.withColumn("ranking", rank().over(windowA)) \
+        .filter(col("ranking") <= 10).orderBy("fecha", "ranking")
+        
+    df_consulta_a.show(5)
 
-    print("--- KPI 2: Volumen por Método de Pago ---")
-    kpi_pagos.show()
+    # --- CONSULTA B: Ticket medio y clientes únicos por categoría (mensual) ---
+    print("--- Ejecutando Consulta B ---")
+    # Cruzamos pedidos, items y productos (para tener la categoría)
+    df_join_b = df_orders.join(df_items, "order_id").join(df_products, "product_id")
+    
+    df_agg_b = df_join_b.withColumn("mes", date_format("order_date", "yyyy-MM")) \
+        .groupBy("mes", "category") \
+        .agg(
+            countDistinct("customer_id").alias("clientes_unicos"),
+            countDistinct("order_id").alias("num_pedidos"),
+            round(_sum(col("quantity") * col("unit_price")), 2).alias("importe_total")
+        )
+        
+    df_consulta_b = df_agg_b.withColumn("ticket_medio", round(col("importe_total") / col("num_pedidos"), 2)) \
+        .orderBy(desc("mes"), "category")
+        
+    df_consulta_b.show(5)
+
+    # --- CONSULTA C: Detección de outliers de ventas por tienda ---
+    print("--- Ejecutando Consulta C ---")
+    df_join_c = df_orders.join(df_items, "order_id")
+    
+    # 1. Ventas totales por día y tienda
+    df_ventas_diarias = df_join_c.groupBy(col("store_id").alias("tienda_id"), col("order_date").alias("fecha")) \
+        .agg(round(_sum(col("quantity") * col("unit_price")), 2).alias("ventas_dia"))
+    
+    # 2. Ventana de 30 días anteriores para calcular medias
+    windowC = Window.partitionBy("tienda_id").orderBy("fecha").rowsBetween(-30, -1)
+    
+    df_consulta_c = df_ventas_diarias \
+        .withColumn("media_30d", round(avg("ventas_dia").over(windowC), 2)) \
+        .withColumn("desviacion_30d", round(stddev("ventas_dia").over(windowC), 2).na.fill(0)) \
+        .withColumn("is_outlier", when(col("ventas_dia") > (col("media_30d") + 2 * col("desviacion_30d")), True).otherwise(False)) \
+        .orderBy("tienda_id", "fecha")
+        
+    df_consulta_c.show(5)
+
+    # --- PUNTO 10: Análisis del DAG ---
+    print("--- PLAN DE EJECUCIÓN CONSULTA A (DAG) ---")
+    df_consulta_a.explain(True)
+
 
     # 4. Escritura de Resultados (Data Lake - Capa Analytics)
-    # Guardamos en formato PARQUET (columnar, comprimido, estándar Big Data)
+    print(f"Escribiendo 3 consultas en: {output_path}")
     
-    print(f"Escribiendo resultados en: {output_path}")
-    
-    kpi_categoria.write.mode("overwrite").parquet(f"{output_path}/ventas_por_categoria")
-    kpi_pagos.write.mode("overwrite").parquet(f"{output_path}/ventas_por_metodo_pago")
+    df_consulta_a.write.mode("overwrite").parquet(f"{output_path}/consulta_a_top_productos")
+    df_consulta_b.write.mode("overwrite").parquet(f"{output_path}/consulta_b_ticket_medio")
+    df_consulta_c.write.mode("overwrite").parquet(f"{output_path}/consulta_c_outliers")
 
     print("--- Procesamiento Finalizado Exitosamente ---")
     spark.stop()
