@@ -110,7 +110,7 @@ def main():
     
     df_consulta_c = df_ventas_diarias \
         .withColumn("media_30d", round(avg("ventas_dia").over(windowC), 2)) \
-        .withColumn("desviacion_30d", round(stddev("ventas_dia").over(windowC), 2).na.fill(0)) \
+        .withColumn("desviacion_30d", coalesce(round(stddev("ventas_dia").over(windowC), 2), lit(0))) \
         .withColumn("is_outlier", when(col("ventas_dia") > (col("media_30d") + 2 * col("desviacion_30d")), True).otherwise(False)) \
         .orderBy("tienda_id", "fecha")
         
