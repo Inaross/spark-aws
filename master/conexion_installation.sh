@@ -3,14 +3,23 @@ icacls "labsuser.pem" /inheritance:r
 
 icacls "labsuser.pem" /grant:r "$($env:USERNAME):F"
 
-ssh -i "labsuser.pem" ubuntu@44.192.33.183
-
 #--- Ejemplo de conexión a la instancia EC2 Master (Es en Terminal)---
 ssh -i "labsuser.pem" ubuntu@IP_PUBLICA
 
 #Si en algún momento se ha establecido conexion en una sesion anterior y ahora da error de permisos seguir estos pasos
 #Por ejemplo, en master, elimina
 sudo docker rm -f spark-master
+
+#PARA INICIAR LOS CONTENEDORES, SI YA SE HAN CREADO ANTES, SOLO HAY QUE INICIARLOS CON ESTOS COMANDO:
+#Para MASTER:
+sudo docker start spark-master
+
+#Para WORKER-1, WORKER-2 y WORKER-3:
+sudo docker start spark-worker
+
+#Para SUBMIT:
+sudo docker start spark-submit
+
 
 #---Conexión a ---
 # 1. Actualizar repositorios e instalar Docker y Git

@@ -2,7 +2,7 @@
 FROM python:3.10-slim-bullseye
 
 #Establecemos el directorio de trabajo dentro del contenedor
-LABEL maintrainer="Alejandro - Desarrollador Aplicaciones Multiplataforma"
+LABEL maintainer="Alejandro - Desarrollador Aplicaciones Multiplataforma"
 LABEL project="Cluster Spark AWS S3"
 LABEL version="1.0"
 
@@ -25,7 +25,7 @@ ENV HADOOP_VERSION=3
 ENV SPARK_HOME=/opt/spark
 ENV PATH=$PATH:$SPARK_HOME/bin:$SPARK_HOME/sbin
 
-# 3. INSTALACION DE APACHE SPARK
+# 3. INSTALACIÓN DE APACHE SPARK
 # Descargamos Spark oficial, lo descomprimimos, limpiamos el archivo zip para ahorrar espacio.
 
 WORKDIR /opt
@@ -35,13 +35,13 @@ RUN wget -q https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-$
     rm spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz
 
 # 4. CONFIGURACION CRÍTICA PARA AWS S3 (PRO)
-# LA MALLORIA FALLA AQUI. Descargamos los JAR necesarios para que Spark hable con S3
+# LA MALLORÍA FALLA AQUÍ. Descargamos los JAR necesarios para que Spark hable con S3
 WORKDIR $SPARK_HOME/jars
 # (Asegúrate de que solo haya UN 'wget -q' por enlace)
 RUN wget -q https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar && \
     wget -q https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar
 
-# 5. INSATALCION DEPENDENCIAS PYTHON
+# 5. INSTALACIÓN DEPENDENCIAS PYTHON
 RUN pip install --no-cache-dir pyspark==${SPARK_VERSION} pandas boto3
 
 # 6. PREPARAR EL ARRANQUE
